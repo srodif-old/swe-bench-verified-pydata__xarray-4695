@@ -1170,6 +1170,44 @@ class TestDataArray:
         assert data.loc[True] == 0
         assert data.loc[False] == 1
 
+    def test_loc_dimension_named_method(self):
+        # Test for https://github.com/pydata/xarray/issues/4695
+        # Ensure that dimensions named with reserved .sel() parameter names work correctly
+        
+        # Test with 'method' dimension (the original issue)
+        empty = np.zeros((2, 2))
+        da_method = DataArray(
+            empty, 
+            dims=['dim1', 'method'], 
+            coords={'dim1': ['x', 'y'], 'method': ['a', 'b']}
+        )
+        result = da_method.loc[dict(dim1='x', method='a')]
+        assert result.values == 0.0
+        
+        # Test with all reserved parameter names as dimensions
+        empty4d = np.zeros((2, 2, 2, 2))
+        reserved_names = ['indexers', 'method', 'tolerance', 'drop']
+        coords = {name: ['a', 'b'] for name in reserved_names}
+        da_reserved = DataArray(empty4d, dims=reserved_names, coords=coords)
+        
+        # Test individual reserved dimension names
+        for name in reserved_names:
+            result = da_reserved.loc[{name: 'a'}]
+            assert result.shape == (2, 2, 2)
+        
+        # Test mixed indexing with multiple reserved names
+        result = da_reserved.loc[{'method': 'a', 'tolerance': 'b'}]
+        assert result.shape == (2, 2)
+        
+        # Test that normal dimensions still work correctly (should use kwargs for backward compatibility)
+        da_normal = DataArray(
+            np.zeros((2, 2)), 
+            dims=['x', 'y'], 
+            coords={'x': [1, 2], 'y': [10, 20]}
+        )
+        result = da_normal.loc[{'x': 1, 'y': 20}]
+        assert result.values == 0.0
+
     def test_selection_multiindex(self):
         mindex = pd.MultiIndex.from_product(
             [["a", "b"], [1, 2], [-1, -2]], names=("one", "two", "three")
