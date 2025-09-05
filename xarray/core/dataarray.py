@@ -196,7 +196,15 @@ class _LocIndexer:
             # expand the indexer so we can handle Ellipsis
             labels = indexing.expanded_indexer(key, self.data_array.ndim)
             key = dict(zip(self.data_array.dims, labels))
-        return self.data_array.sel(**key)
+        
+        # Check if any keys conflict with .sel() reserved parameters
+        reserved_params = {'indexers', 'method', 'tolerance', 'drop'}
+        if any(k in reserved_params for k in key):
+            # Use indexers parameter to avoid naming conflicts
+            return self.data_array.sel(indexers=key)
+        else:
+            # Use keyword arguments for better backward compatibility
+            return self.data_array.sel(**key)
 
     def __setitem__(self, key, value) -> None:
         if not utils.is_dict_like(key):
